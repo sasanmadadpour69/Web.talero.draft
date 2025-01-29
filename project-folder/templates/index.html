@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychology Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            color: #333;
+        }
+        .question {
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #555;
+        }
+        .options {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .option img {
+            cursor: pointer;
+            width: 180px;
+            height: 180px;
+            object-fit: cover;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .option img:hover {
+            transform: scale(1.1);
+            border-color: #007bff;
+        }
+        .description {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #666;
+        }
+        #spiderChart-container {
+    display: flex;
+    justify-content: center; /* مرکز‌چین کردن نمودار در عرض */
+    width: 100%;
+    margin-top: 20px;
+}
+
+    </style>
+</head>
+<body>
+    <h1 id="title">Choose a picture that resonates with your mood?</h1>
+    <div id="quiz-container">
+        <div class="question">I am a ...... person.</div>
+        <div class="options">
+            <div class="option">
+                <img src="{{ url_for('static', filename='item1_image1.jpg') }}" onclick="selectOption(1)">
+                <div class="description">Low Extraversion</div>
+            </div>
+            <div class="option">
+                <img src="{{ url_for('static', filename='item1_image2.jpg') }}" onclick="selectOption(2)">
+                <div class="description">Medium Extraversion</div>
+            </div>
+            <div class="option">
+                <img src="{{ url_for('static', filename='item1_image3.jpg') }}" onclick="selectOption(3)">
+                <div class="description">High Extraversion</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let currentQuestion = 0;
+
+    function selectOption(option) {
+        fetch('/submit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ question: currentQuestion, answer: option })
+        }).then(res => res.json()).then(data => {
+            if (data.nextQuestion) {
+                currentQuestion++;
+                document.querySelector('.question').innerText = data.nextQuestion.text;
+                document.querySelectorAll('.option').forEach((option, index) => {
+                    option.querySelector('img').src = data.nextQuestion.images[index];
+                    option.querySelector('.description').innerText = data.nextQuestion.descriptions[index];
+                });
+            } else {
+                document.getElementById("title").style.display = "none";
+                document.getElementById("quiz-container").innerHTML = `
+                    <h2>Test Results</h2>
+                    <div id="spiderChart-container">
+                     <canvas id="spiderChart" width="300" height="300"></canvas>
+                    </div>
+                `;
+
+                // ✅ بررسی مقدار `finalScores`
+                console.log("Received Final Scores:", data.finalScores);
+
+                if (data.finalScores) {
+                    drawRadarChart(data.finalScores);
+                } else {
+                    document.getElementById("quiz-container").innerHTML += "<p>Something went wrong. No data received.</p>";
+                }
+            }
+        });
+    }
+
+    function drawRadarChart(scores) {
+    let canvas = document.getElementById('spiderChart');
+    canvas.width = 480;  // کاهش عرض به یک‌پنجم
+    canvas.height = 480; // کاهش ارتفاع به یک‌پنجم
+
+    let ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ["Extraversion", "Agreeableness", "Conscientiousness", "Emotional-Stability", "Openness"],
+            datasets: [{
+                label: "Your Personality Traits",
+                data: [
+                    scores.Extraversion || 0, 
+                    scores.Agreeableness || 0, 
+                    scores.Conscientiousness || 0, 
+                    scores["Emotional-Stability"] || 0, 
+                    scores.Openness || 0
+                ],
+                fill: true,
+                backgroundColor: "rgba(54, 162, 235, 0.2)",
+                borderColor: "rgba(54, 162, 235, 1)",
+                pointBackgroundColor: "rgba(54, 162, 235, 1)"
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    min: 1,
+                    max: 6,
+                    beginAtZero: false,
+                    ticks: {
+                        stepSize: 1,
+                        backdropColor: "transparent",
+                        font: {
+                            size: 20, // افزایش اندازه فونت مقدارهای محورها
+                            weight: 'bold' // برجسته کردن فونت
+                        }
+                    },
+                    pointLabels: {
+                        font: {
+                            size: 20, // افزایش اندازه فونت برچسب‌های محورها
+                            weight: 'bold'
+                        },
+                        color: "#333" // تغییر رنگ به مشکی برای وضوح بهتر
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        font: {
+                            size: 20 // افزایش اندازه فونت عنوان‌های راهنما
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>
